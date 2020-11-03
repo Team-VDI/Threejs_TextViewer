@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-		<title> WebGL/Three.js Text Viewer</title>
+		<title> 3D Teksta Vizualizēšana</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<link rel="stylesheet" href="style.css">
@@ -9,28 +9,31 @@
 	<body>
 
 		<div class="container">
-			<h1><center>WebGL/Three.js Text Viewer</center></h1>
-			<p>Use the buttons to change the 3D text parameters. Click on the text to move it with the mouse! </p>
-			<p>You can also change the text by just typing in anything you like, to delete it - press <b>backspace!</b></p>
+			<h1><center>WebGL/Three.js Teksta vizualizēšana</center></h1>
+			<p>Izmanto pogas, lai mainītu teksta parametrus - izmanto peli, lai rotētu tekstu! </p>
+			<p>Tekstu iespējams izmanīt ierakstot to - tekstu iespējams izdzēst izmantojot "Backspace" pogu!</p>
 			<center>
-				<button id="color">change color</button>
-				<button id="font">change font</button>
-				<button id="weight">weight</button>
-				<button id="bevel">change bevel</button>
-				<button id="lighting">lighting</button>
+				<button id="color">Mainīt krāsu</button>
+				<button id="font">Mainīt fontu</button>
+				<button id="weight">Biezums</button>
+				<button id="bevel">Nogludināt</button>
+				<button id="lighting">Apgaismojums</button>
+				<button id="animation">Animācija</button>
 				<a id="permalink" href="#"></a>
 			</center>
 		</div>
 
 		<figure>
 			<center>
-				<figcaption>Listen to some music while playing around with this: </figcaption>
+				<figcaption>Klausies mūziku kamēr darbojies ar tekstu! : </figcaption>
 				<audio controls src="audio/KAYTRANADA - September 21.mp3"></audio>
 			</center>
 		</figure>
 		
+		<script src="build/dat.gui.js"></script>
+
 		<script type="module">
-			var gui;
+			var gui, parameters;
 			import * as THREE from './build/three.module.js';
 			import Stats from './jsm/libs/stats.module.js';
 
@@ -42,10 +45,10 @@
 			let firstLetter = true;
 
 			//starting value definition
-			let text = "Hello there!",
+			let text = "VDI",
 				bevelEnabled = true,
 				font = undefined,
-				fontName = "helvetiker", // iespejamie fonti: helvetiker, optimer, gentilis, droid sans, droid serif
+				fontName = "helvetiker", // iespejamie fonti: helvetiker, optimer, gentilis
 				fontWeight = "bold"; 
 
 			//text parameters
@@ -56,16 +59,17 @@
 				bevelThickness = 2,
 				bevelSize = 1.5;
 
+			//plane mirror effect
 			const mirror = true;
 
+			//font options
 			const fontMap = {
 				"helvetiker": 0,
 				"optimer": 1,
 				"gentilis": 2,
-				"droid/droid_sans": 3,
-				"droid/droid_serif": 4
 			};
 
+			//weight options
 			const weightMap = {
 				"regular": 0,
 				"bold": 1
@@ -84,44 +88,40 @@
 			let windowHalfX = window.innerWidth / 2;
 			let fontIndex = 1;
 
+			let animation_clicked = false;
+
 			init();
-			animate();
-
+		
 			function decimalToHex( d ) {
-
 				let hex = Number( d ).toString( 16 );
 				hex = "000000".substr( 0, 6 - hex.length ) + hex;
 				return hex.toUpperCase();
-
 			}
 
 			function init() {
-
 				container = document.createElement( 'div' );
 				document.body.appendChild( container );
 				permalink = document.getElementById( "permalink" );
 
-				// CAMERA
+				// Camera controls
 				camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 1, 1500 );
-				camera.position.set( 0, 400, 700 );
+				camera.position.set(0,400,700 );
 				cameraTarget = new THREE.Vector3( 0, 150, 0 );
 
-				// SCENE
+				// Scene
 				scene = new THREE.Scene();
 				scene.background = new THREE.Color( 0x000000 );
 				scene.fog = new THREE.Fog( 0x000000, 250, 1400 );
 
-				// LIGHTS
-				const dirLight = new THREE.DirectionalLight( 0xffffff, 0.125 );
-				dirLight.position.set( 0, 0, 1 ).normalize();
+				// Scene lighting
+				const dirLight = new THREE.DirectionalLight('#ed3bbe', 1.4);
+				dirLight.position.set(0,0,1).normalize();
 				scene.add(dirLight);
-
-				const pointLight = new THREE.PointLight(0xffffff, 2);
-				pointLight.position.set( 0, 100, 90 );
+				const pointLight = new THREE.PointLight('#ffffff', 2);
+				pointLight.position.set(0,100,90);
 				scene.add(pointLight);
 
-
-				// Text
+				// Text control and parameters
 				const hash = document.location.hash.substr( 1 );
 
 				if ( hash.length !== 0 ) {
@@ -146,6 +146,7 @@
 					hex = decimalToHex( pointLight.color.getHex() );
 				}
 
+				//materials
 				materials = [
 					new THREE.MeshPhongMaterial({ color: 0xffffff, flatShading: true } ), // front
 					new THREE.MeshPhongMaterial({ color: 0xffffff } ) // side
@@ -156,29 +157,30 @@
 				scene.add( group );
 				loadFont();
 
+				//plane definition
 				const plane = new THREE.Mesh(
 					new THREE.PlaneBufferGeometry( 10000, 10000 ),
 					new THREE.MeshBasicMaterial( { color: 0xffffff, opacity: 0.5, transparent: true } )
 				);
-
 				plane.position.y = 100;
 				plane.rotation.x = - Math.PI / 2;
 				scene.add( plane );
 
-				// RENDERER
+				// rendering
 				renderer = new THREE.WebGLRenderer( { antialias: true } );
 				renderer.setPixelRatio( window.devicePixelRatio );
 				renderer.setSize( window.innerWidth, window.innerHeight );
 				container.appendChild( renderer.domElement );
 
-				// STATS
+				// stat def
 				stats = new Stats();
 
-				// EVENTS
+				// event control
 				container.style.touchAction = 'none';
 				container.addEventListener( 'pointerdown', onPointerDown, false );
 				document.addEventListener( 'keypress', onDocumentKeyPress, false );
 				document.addEventListener( 'keydown', onDocumentKeyDown, false );
+
 				document.getElementById( "color" ).addEventListener( 'click', function () {
 
 					pointLight.color.setHSL( Math.random(), 1, 0.5 );
@@ -211,10 +213,29 @@
 
 				}, false );
 
+
+				document.getElementById( "animation" ).addEventListener( 'click', function () {
+					animation_clicked = ! animation_clicked;
+
+				}, false );
+
+				
+				document.getElementById( "lighting" ).addEventListener( 'click', function () {
+					//red light
+					pointLight.intensity = 3.4;
+					pointLight.color.setHex(0xff0000);
+					dirLight.intensity = 4;
+					dirLight.color.setHex(0x000000);
+					
+					refreshText();
+					render();
+
+				}, false );
+
 				window.addEventListener( 'resize', onWindowResize, false );
 
 			}
-
+			
 			function onWindowResize() {
 
 				windowHalfX = window.innerWidth / 2;
@@ -230,11 +251,9 @@
 			}
 
 			function updatePermalink() {
-
 				const link = hex + fontMap[ fontName ] + weightMap[ fontWeight ] + boolToNum( bevelEnabled ) + "#" + encodeURI( text );
 				permalink.href = "#" + link;
 				window.location.hash = link;
-
 			}
 
 			function onDocumentKeyDown( event ) {
@@ -247,7 +266,6 @@
 				const keyCode = event.keyCode;
 
 				// backspace
-
 				if ( keyCode == 8 ) {
 					event.preventDefault();
 					text = text.substring( 0, text.length - 1 );
@@ -372,12 +390,25 @@
 				document.removeEventListener( 'pointerup', onPointerUp );
 			}
 
+			animate();
+
 			//Animation
 			function animate() {
 				requestAnimationFrame(animate);
+				if (animation_clicked == false)
+				{
+					render();
+					stats.update();
+					return;
+				}
+				
+				else
+				{
+				textMesh1.rotation.y += 0.003;
+				textMesh2.rotation.y -= 0.003;
 				render();
 				stats.update();
-
+				}	
 			}
 
 			function render() {
@@ -387,7 +418,6 @@
 				renderer.render( scene, camera );
 
 			}
-
 		</script>
 	</body>
 </html>

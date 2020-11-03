@@ -16,6 +16,11 @@ audio
     height: 30px;
 }
 
+#gui 
+{ 
+	position: fixed; top: 400px; right: 20px;
+}
+
 h1
 {
     color: white;
